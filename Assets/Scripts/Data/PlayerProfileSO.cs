@@ -6,6 +6,9 @@ public class PlayerProfileSO : ScriptableObject
 {
     public string playerName = "Player";
 
+    [Tooltip("Name of the character prefab picked on the character screen; empty means a random one.")]
+    public string characterName = "";
+
     private string SavePath
     {
         get

@@ -9,6 +9,7 @@ public class MainMenuUI : MonoBehaviour
     [Header("Main Menu Buttons")]
     [SerializeField] private ButtonManager startButton;
     [SerializeField] private ButtonManager joinButton;
+    [SerializeField] private ButtonManager characterButton;
     [SerializeField] private ButtonManager settingButton;
     [SerializeField] private ButtonManager exitButton;
 
@@ -27,6 +28,7 @@ public class MainMenuUI : MonoBehaviour
     {
         if (startButton) startButton.onClick.AddListener(OnStartClick);
         if (joinButton) joinButton.onClick.AddListener(OnJoinClick);
+        if (characterButton) characterButton.onClick.AddListener(OnCharacterClick);
         if (settingButton) settingButton.onClick.AddListener(OnSettingsClick);
         if (exitButton) exitButton.onClick.AddListener(OnExitClick);
 
@@ -60,6 +62,11 @@ public class MainMenuUI : MonoBehaviour
     private void OnJoinClick()
     {
         GameUIManager.Instance.ShowConnectionPanel();
+    }
+
+    private void OnCharacterClick()
+    {
+        GameUIManager.Instance.ShowCharacterSelect();
     }
 
     private void OnSettingsClick()

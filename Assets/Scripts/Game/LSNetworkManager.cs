@@ -1,11 +1,76 @@
 using UnityEngine;
 using Mirror;
 using System;
+using System.Collections.Generic;
 using UnityEngine.SceneManagement;
+
+/// <summary>The character a client picked, sent before its player is added.</summary>
+public struct CharacterChoiceMessage : NetworkMessage
+{
+    public string characterName;
+}
 
 public class LSNetworkManager : NetworkManager
 {
     public static event Action OnDisconnectedEvent;
+
+    [Tooltip("Every playable character. Players get the one they picked on the character screen, bots and players who never picked get one at random; a player keeps theirs from the lobby into the match.")]
+    public GameObject[] characterPrefabs;
+
+    private readonly Dictionary<int, GameObject> characterByConnection = new Dictionary<int, GameObject>();
+
+    public override void Awake()
+    {
+        // Clients can only spawn prefabs they have registered.
+        foreach (GameObject prefab in characterPrefabs)
+        {
+            if (prefab != null && prefab != playerPrefab && !spawnPrefabs.Contains(prefab))
+                spawnPrefabs.Add(prefab);
+        }
+
+        base.Awake();
+    }
+
+    public GameObject RandomCharacter()
+    {
+        return characterPrefabs != null && characterPrefabs.Length > 0
+            ? characterPrefabs[UnityEngine.Random.Range(0, characterPrefabs.Length)]
+            : playerPrefab;
+    }
+
+    public override void OnStartServer()
+    {
+        base.OnStartServer();
+        NetworkServer.RegisterHandler<CharacterChoiceMessage>(OnCharacterChoice);
+    }
+
+    private void OnCharacterChoice(NetworkConnectionToClient conn, CharacterChoiceMessage message)
+    {
+        GameObject prefab = Array.Find(characterPrefabs, p => p != null && p.name == message.characterName);
+
+        if (prefab != null)
+            characterByConnection[conn.connectionId] = prefab;
+    }
+
+    public override void OnClientConnect()
+    {
+        // Ahead of base, which asks for the player: the server reads messages in order,
+        // so the choice is known by the time the player is spawned.
+        PlayerProfileSO profile = ScriptableObject.CreateInstance<PlayerProfileSO>();
+        profile.LoadProfile();
+        NetworkClient.Send(new CharacterChoiceMessage { characterName = profile.characterName });
+        Destroy(profile);
+
+        base.OnClientConnect();
+    }
+
+    private GameObject CharacterFor(NetworkConnectionToClient conn)
+    {
+        if (!characterByConnection.TryGetValue(conn.connectionId, out GameObject prefab) || prefab == null)
+            characterByConnection[conn.connectionId] = prefab = RandomCharacter();
+
+        return prefab;
+    }
 
     /// <summary>
     /// Gate for every incoming connection. Once the host starts the match the door is
@@ -78,16 +143,18 @@ public class LSNetworkManager : NetworkManager
                 spawnPos.y = hit.point.y;
             }
 
-            GameObject player = Instantiate(playerPrefab, spawnPos, spawnRot);
-            player.name = $"{playerPrefab.name} [connId={conn.connectionId}]";
+            GameObject prefab = CharacterFor(conn);
+            GameObject player = Instantiate(prefab, spawnPos, spawnRot);
+            player.name = $"{prefab.name} [connId={conn.connectionId}]";
             NetworkServer.AddPlayerForConnection(conn, player);
         }
         else if (LSMatchManager.Instance != null &&
                  LSMatchManager.Instance.ServerTryGetPlayerSpawn(conn.connectionId, out Vector3 spawnPos, out Quaternion spawnRot))
         {
             // A random spot for the player's team, away from every other team.
-            GameObject player = Instantiate(playerPrefab, spawnPos, spawnRot);
-            player.name = $"{playerPrefab.name} [connId={conn.connectionId}]";
+            GameObject prefab = CharacterFor(conn);
+            GameObject player = Instantiate(prefab, spawnPos, spawnRot);
+            player.name = $"{prefab.name} [connId={conn.connectionId}]";
             NetworkServer.AddPlayerForConnection(conn, player);
         }
         else
@@ -116,6 +183,9 @@ public class LSNetworkManager : NetworkManager
             MatchTracker.Instance.ServerNotifyConnectionLost(conn.connectionId);
         }
 
+        if (conn != null)
+            characterByConnection.Remove(conn.connectionId);
+
         base.OnServerDisconnect(conn);
     }
 
@@ -139,6 +209,7 @@ public class LSNetworkManager : NetworkManager
     public override void OnStopServer()
     {
         base.OnStopServer();
+        characterByConnection.Clear();
         OnDisconnectedEvent?.Invoke();
     }
 }

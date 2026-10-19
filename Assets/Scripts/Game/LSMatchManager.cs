@@ -776,7 +776,8 @@ public class LSMatchManager : NetworkBehaviour
 
         ServerSpawnPose(bot.teamId, out Vector3 position, out Quaternion rotation);
 
-        GameObject botObject = Instantiate(manager.playerPrefab, position, rotation);
+        GameObject prefab = manager is LSNetworkManager lsManager ? lsManager.RandomCharacter() : manager.playerPrefab;
+        GameObject botObject = Instantiate(prefab, position, rotation);
         botObject.name = bot.name;
 
         if (!botObject.TryGetComponent(out LSPlayer player))

@@ -18,8 +18,13 @@ using UnityEngine;
 /// holstered props on the hips and back are then leaned and slid until they rest on the
 /// new body's skin, so a slimmer or heavier model does not leave them floating or buried.
 ///
+/// Characters wear no armour, and every hitbox is fitted to the new body's skin, so a
+/// shot that misses the body misses the hitbox too.
+///
 /// Select a model in Assets/Prefabs/Character Models and run
 /// Tools > Last Stand > Build Character Prefab From Selected Model.
+/// Tools > Last Stand > Strip Armour And Fit Hitboxes redoes that last step on every
+/// character prefab already built.
 /// </summary>
 public static class CharacterModelPrefabBuilder
 {
@@ -27,6 +32,8 @@ public static class CharacterModelPrefabBuilder
     private const string OutputFolder = "Assets/Prefabs";
     private const string OldSkeletonRoot = "Armature";
     private const string MenuPath = "Tools/Last Stand/Build Character Prefab From Selected Model";
+    private const string FinishMenuPath = "Tools/Last Stand/Strip Armour And Fit Hitboxes";
+    private const string ModelsFolder = "Assets/Prefabs/Character Models";
 
     private const int GapBands = 12;
     private const float SkinSearchMargin = 0.15f;
@@ -70,6 +77,35 @@ public static class CharacterModelPrefabBuilder
         return model != null && PrefabUtility.GetPrefabAssetType(model) == PrefabAssetType.Model;
     }
 
+    [MenuItem(FinishMenuPath)]
+    private static void FinishAll()
+    {
+        foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { ModelsFolder }))
+        {
+            string name = System.IO.Path.GetFileNameWithoutExtension(AssetDatabase.GUIDToAssetPath(guid));
+            string prefabPath = OutputFolder + "/" + name + ".prefab";
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null)
+                continue;
+
+            GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
+
+            try
+            {
+                StripArmour(root);
+                FitHitboxes(root);
+                PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+
+            KeepAssetId(prefabPath);
+            Debug.Log("Stripped armour and fitted hitboxes on " + prefabPath);
+        }
+    }
+
     /// <summary>Returns the path of the prefab it wrote.</summary>
     public static string Build(string modelPath)
     {
@@ -90,6 +126,8 @@ public static class CharacterModelPrefabBuilder
             root.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
 
             Reskin(root, model);
+            StripArmour(root);
+            FitHitboxes(root);
 
             root.transform.localPosition = rootPosition;
             root.transform.localRotation = rootRotation;
@@ -100,9 +138,17 @@ public static class CharacterModelPrefabBuilder
             PrefabUtility.UnloadPrefabContents(root);
         }
 
-        // Mirror zeroes the asset id while a prefab is open for editing and afterwards only
-        // works it out in memory (reading it does that); a build needs it on disk.
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(outputPath);
+        KeepAssetId(outputPath);
+        return outputPath;
+    }
+
+    /// <summary>
+    /// Mirror zeroes the asset id while a prefab is open for editing and afterwards only
+    /// works it out in memory (reading it does that); a build needs it on disk.
+    /// </summary>
+    private static void KeepAssetId(string prefabPath)
+    {
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
         Mirror.NetworkIdentity identity = prefab.GetComponent<Mirror.NetworkIdentity>();
 
         if (identity != null && identity.assetId != 0)
@@ -110,8 +156,157 @@ public static class CharacterModelPrefabBuilder
             EditorUtility.SetDirty(identity);
             PrefabUtility.SavePrefabAsset(prefab);
         }
+    }
 
-        return outputPath;
+    /// <summary>Removes every armour piece. JUInventory collects its items at runtime, so nothing is left pointing at them.</summary>
+    private static void StripArmour(GameObject root)
+    {
+        var pieces = new List<GameObject>();
+
+        foreach (JUTPS.ArmorSystem.Armor armour in root.GetComponentsInChildren<JUTPS.ArmorSystem.Armor>(true))
+        {
+            if (armour.Parts != null)
+                pieces.AddRange(armour.Parts);
+
+            pieces.Add(armour.gameObject);
+        }
+
+        foreach (GameObject piece in pieces)
+        {
+            if (piece != null)
+                Object.DestroyImmediate(piece);
+        }
+    }
+
+    /// <summary>
+    /// Sizes each body part's hitbox to the skin its bone moves. Every vertex counts for
+    /// the nearest bone up its chain that has a hitbox (a hand for the forearm, the neck
+    /// for the chest), and a few stray vertices at the edges are left out.
+    /// </summary>
+    private static void FitHitboxes(GameObject root)
+    {
+        var skinOf = new Dictionary<Transform, List<Vector3>>();
+
+        foreach (JUTPS.ArmorSystem.DamageableBodyPart part in root.GetComponentsInChildren<JUTPS.ArmorSystem.DamageableBodyPart>(true))
+            skinOf[part.transform] = new List<Vector3>();
+
+        foreach (SkinnedMeshRenderer skin in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            Mesh mesh = skin.sharedMesh;
+            Transform[] bones = skin.bones;
+
+            if (mesh == null || bones.Length == 0)
+                continue;
+
+            Matrix4x4[] bindposes = mesh.bindposes;
+            var skinning = new Matrix4x4[bones.Length];
+            var owner = new Transform[bones.Length];
+
+            for (int b = 0; b < bones.Length; b++)
+            {
+                if (bones[b] == null)
+                    continue;
+
+                skinning[b] = bones[b].localToWorldMatrix * bindposes[b];
+
+                for (Transform t = bones[b]; t != null && owner[b] == null; t = t.parent)
+                {
+                    if (skinOf.ContainsKey(t))
+                        owner[b] = t;
+                }
+            }
+
+            Vector3[] vertices = mesh.vertices;
+            BoneWeight[] weights = mesh.boneWeights;
+
+            for (int i = 0; i < vertices.Length && i < weights.Length; i++)
+            {
+                BoneWeight w = weights[i];
+                int heaviest = w.boneIndex0;
+                float most = w.weight0;
+                if (w.weight1 > most) { heaviest = w.boneIndex1; most = w.weight1; }
+                if (w.weight2 > most) { heaviest = w.boneIndex2; most = w.weight2; }
+                if (w.weight3 > most) { heaviest = w.boneIndex3; }
+
+                Transform part = owner[heaviest];
+
+                if (part == null)
+                    continue;
+
+                Vector3 world = skinning[w.boneIndex0].MultiplyPoint3x4(vertices[i]) * w.weight0
+                              + skinning[w.boneIndex1].MultiplyPoint3x4(vertices[i]) * w.weight1
+                              + skinning[w.boneIndex2].MultiplyPoint3x4(vertices[i]) * w.weight2
+                              + skinning[w.boneIndex3].MultiplyPoint3x4(vertices[i]) * w.weight3;
+
+                skinOf[part].Add(part.InverseTransformPoint(world));
+            }
+        }
+
+        foreach (KeyValuePair<Transform, List<Vector3>> pair in skinOf)
+        {
+            List<Vector3> points = pair.Value;
+            Collider collider = pair.Key.GetComponent<Collider>();
+
+            if (points.Count < 20 || collider == null)
+                continue;
+
+            Vector3 mid = new Vector3(Middle(points, 0), Middle(points, 1), Middle(points, 2));
+
+            if (collider is CapsuleCollider capsule)
+            {
+                int a = capsule.direction;
+                int u = (a + 1) % 3;
+                int v = (a + 2) % 3;
+                float start = Quantile(points.ConvertAll(p => p[a]), 0.02f);
+                float end = Quantile(points.ConvertAll(p => p[a]), 0.98f);
+                // Thickness from the middle of the limb only: a foot or a hand at the end
+                // sticks out sideways and would fatten the whole capsule.
+                float shaftStart = Mathf.Lerp(start, end, 0.15f);
+                float shaftEnd = Mathf.Lerp(start, end, 0.85f);
+                List<Vector3> shaft = points.FindAll(p => p[a] >= shaftStart && p[a] <= shaftEnd);
+                Vector2 axisMid = new Vector2(Middle(shaft, u), Middle(shaft, v));
+                float radius = Quantile(shaft.ConvertAll(p => (new Vector2(p[u], p[v]) - axisMid).magnitude), 0.8f);
+
+                Vector3 center = mid;
+                center[a] = (start + end) * 0.5f;
+                center[u] = axisMid.x;
+                center[v] = axisMid.y;
+                capsule.center = center;
+                capsule.radius = radius;
+                capsule.height = Mathf.Max(end - start, 2f * radius);
+            }
+            else if (collider is BoxCollider box)
+            {
+                Vector3 size = Vector3.zero;
+
+                for (int i = 0; i < 3; i++)
+                {
+                    int axis = i;
+                    size[i] = Quantile(points.ConvertAll(p => p[axis]), 0.95f) - Quantile(points.ConvertAll(p => p[axis]), 0.05f);
+                }
+
+                box.center = mid;
+                box.size = size;
+            }
+            else if (collider is SphereCollider sphere)
+            {
+                sphere.center = mid;
+                sphere.radius = Quantile(points.ConvertAll(p => (p - mid).magnitude), 0.8f);
+            }
+        }
+    }
+
+    /// <summary>Halfway between the 5th and 95th percentile on one axis.</summary>
+    private static float Middle(List<Vector3> points, int axis)
+    {
+        List<float> values = points.ConvertAll(p => p[axis]);
+        return (Quantile(values, 0.05f) + Quantile(values, 0.95f)) * 0.5f;
+    }
+
+    private static float Quantile(List<float> values, float q)
+    {
+        values.Sort();
+        return values[Mathf.Clamp(Mathf.RoundToInt(q * (values.Count - 1)), 0, values.Count - 1)];
     }
 
     private static void Reskin(GameObject root, GameObject model)

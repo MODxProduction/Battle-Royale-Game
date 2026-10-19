@@ -29,12 +29,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3163126826636465162}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 1.066, y: 0.697, z: 1.319}
   m_LocalScale: {x: 0.07, y: 0.07, z: 0.07}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &5792311412775153911
 Rigidbody:
@@ -43,10 +44,21 @@ Rigidbody:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3163126826636465162}
-  serializedVersion: 2
+  serializedVersion: 5
   m_Mass: 0.8
-  m_Drag: 0
-  m_AngularDrag: 0.05
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 1
@@ -54,7 +66,7 @@ Rigidbody:
   m_CollisionDetection: 1
 --- !u!96 &346526967013483734
 TrailRenderer:
-  serializedVersion: 2
+  serializedVersion: 4
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -64,10 +76,17 @@ TrailRenderer:
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 0
   m_ReflectionProbeUsage: 0
   m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -89,10 +108,13 @@ TrailRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_Time: 0.02
+  m_PreviewTimeScale: 1
   m_Parameters:
     serializedVersion: 3
     widthMultiplier: 0.05
@@ -147,17 +169,20 @@ TrailRenderer:
       atime6: 0
       atime7: 0
       m_Mode: 0
+      m_ColorSpace: -1
       m_NumColorKeys: 2
       m_NumAlphaKeys: 3
     numCornerVertices: 0
     numCapVertices: 0
     alignment: 0
     textureMode: 0
+    textureScale: {x: 1, y: 1}
     shadowBias: 0.5
     generateLightingData: 0
   m_MinVertexDistance: 0.1
   m_Autodestruct: 0
   m_Emitting: 1
+  m_ApplyActiveColorSpace: 0
 --- !u!114 &305308058526563895
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -184,20 +209,15 @@ MonoBehaviour:
   FinalPointNormal: {x: 0, y: 0, z: 0}
   ImpactFX:
   - SurfaceTag: Untagged
-    ParticleFXPrefab: {fileID: 3377176041485713299, guid: d9ad05da0af838d48ae568355f9ee5a7,
-      type: 3}
+    ParticleFXPrefab: {fileID: 3377176041485713299, guid: d9ad05da0af838d48ae568355f9ee5a7, type: 3}
   - SurfaceTag: Skin
-    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af,
-      type: 3}
+    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af, type: 3}
   - SurfaceTag: Player
-    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af,
-      type: 3}
+    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af, type: 3}
   - SurfaceTag: Enemy
-    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af,
-      type: 3}
+    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af, type: 3}
   - SurfaceTag: Bones
-    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af,
-      type: 3}
+    ParticleFXPrefab: {fileID: 3377176041485713299, guid: f5973a37858ed07439978e742b77a3af, type: 3}
 --- !u!135 &6703740975196170978
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -206,10 +226,18 @@ SphereCollider:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3163126826636465162}
   m_Material: {fileID: 13400000, guid: 7538a0b55e2a1ad4389b7b48f04272f9, type: 2}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
   m_IsTrigger: 0
+  m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 1
+  serializedVersion: 3
+  m_Radius: 0.2
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &6946492615548366874
 MeshRenderer:
@@ -222,10 +250,17 @@ MeshRenderer:
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -247,9 +282,12 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &5821887340026316074
 MeshFilter:
   m_ObjectHideFlags: 0

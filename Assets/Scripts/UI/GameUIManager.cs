@@ -99,6 +99,15 @@ public void ShowSettingsPanel()
         if (_settingPanel) _settingPanel.SetActive(true);
     }
 
+    public void ShowCharacterSelect()
+    {
+        // A popup over the menu, like Host and Join.
+        CharacterSelectUI popup = FindFirstObjectByType<CharacterSelectUI>(FindObjectsInactive.Include);
+
+        if (popup != null)
+            popup.Open();
+    }
+
     public void ShowLoadingPanel()
     {
         HideAllPanels();

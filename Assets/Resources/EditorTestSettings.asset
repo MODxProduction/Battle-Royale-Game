@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 12496b29831e490980cb8ef139e625e2, type: 3}
   m_Name: EditorTestSettings
   m_EditorClassIdentifier: Assembly-CSharp::EditorTestSettings
-  keyboardAndMouseInEditor: 0
+  keyboardAndMouseInEditor: 1
